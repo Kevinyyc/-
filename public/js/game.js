@@ -211,10 +211,26 @@ function renderActions(snap) {
   bar.innerHTML = '';
 
   if (snap.state === 'bidding') {
-    if (snap.bidOrder[snap.bidIdx] === mySeat) {
-      // 弹窗已经在 DOMContentLoaded 时绑了 onclick，这里只需要显示
-      $('bidModal').style.display = 'flex';
-      // 底部也保留按钮作为备用入口
+    const bidder = snap.bidOrder[snap.bidIdx];
+    const bidderName = snap.seats[bidder]?.name || '?';
+    const isMyTurn = bidder === mySeat;
+
+    // 弹窗：所有人都显示，让大家都知道开始抢地主了
+    const modal = $('bidModal');
+    modal.style.display = 'flex';
+    const titleEl = modal.querySelector('h3');
+    const subEl = modal.querySelector('p');
+    const btnContainer = modal.querySelector('.bid-buttons');
+    if (titleEl) titleEl.textContent = isMyTurn ? '🎯 轮到你叫地主' : '⏳ 抢地主中';
+    if (subEl) subEl.textContent = isMyTurn
+      ? '第一个「叫地主」的人当地主'
+      : `等待 ${bidderName} 叫地主…`;
+    if (btnContainer) {
+      btnContainer.style.display = isMyTurn ? 'flex' : 'none';
+    }
+
+    // 底部按钮只对当前玩家显示
+    if (isMyTurn) {
       bar.innerHTML = `
         <button class="btn primary" id="btnBid">叫地主</button>
         <button class="btn ghost" id="btnPass">不叫</button>
@@ -222,7 +238,7 @@ function renderActions(snap) {
       $('btnBid').onclick = () => doBid('bid');
       $('btnPass').onclick = () => doBid('pass');
     } else {
-      $('bidModal').style.display = 'none';
+      bar.innerHTML = `<div style="color:#c9e8d4; padding:8px;">等 ${bidderName} 叫地主</div>`;
     }
     return;
   } else {

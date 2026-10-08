@@ -8,7 +8,16 @@ const PORT = process.env.PORT || 3000;
 const IDLE_TIMEOUT_MS = 15000;
 
 const app = express();
-app.use(express.static(path.join(__dirname, '..', 'public')));
+// 禁用缓存，确保浏览器每次拿到最新前端代码
+app.use(express.static(path.join(__dirname, '..', 'public'), {
+  maxAge: 0,
+  etag: false,
+  lastModified: false,
+  setHeaders: (res) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+  },
+}));
 
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -72,17 +81,25 @@ function armRoomIdles(roomId) {
 function broadcastRoom(roomId) {
   const room = manager.getRoom(roomId);
   if (!room) return;
+  let count = 0;
   for (let i = 0; i < room.seats.length; i++) {
     const s = room.seats[i];
     if (!s) continue;
-    // 给该 userId 找到对应的 socket（通过 socketToUser 反查）
-    for (const [sockId, uid] of manager.socketToUser.entries()) {
-      if (uid === s.userId) {
-        const sock = io.sockets.sockets.get(sockId);
-        if (sock) sock.emit('game_update', room.getSnapshot(i));
-        break;
-      }
+    // 找到该 userId 对应的 socket（最新连接）
+    let sockId = null;
+    for (const [id, uid] of manager.socketToUser.entries()) {
+      if (uid === s.userId) { sockId = id; break; }
     }
+    if (!sockId) continue;
+    const sock = io.sockets.sockets.get(sockId);
+    if (sock && sock.connected) {
+      sock.emit('game_update', room.getSnapshot(i));
+      count++;
+    }
+  }
+  if (room.state === 'bidding' || room.state === 'playing') {
+    console.log(`[room ${roomId}] broadcast state=${room.state} → ${count} sockets`);
+    require('fs').appendFileSync('debug.log', `[${new Date().toISOString()}] room ${roomId} broadcast state=${room.state} → ${count} sockets\n`);
   }
 }
 
