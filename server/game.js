@@ -55,15 +55,29 @@ class Game {
 
   // === 座位管理 ===
   sitDown(playerId, playerName) {
-    if (this.state !== STATE.WAITING) return { ok: false, error: '已开始' };
     if (this.seats.some((s) => s && s.id === playerId)) return { ok: false, error: '已在房间' };
-    const empty = this.seats.findIndex((s) => s === null);
-    if (empty === -1) return { ok: false, error: '房间已满' };
-    this.seats[empty] = { id: playerId, name: playerName, connected: true, offlineSince: null };
-    if (this.seats.every((s) => s !== null)) {
-      this.startBidding();
+
+    if (this.state === STATE.WAITING) {
+      // 清理同名的旧玩家（兜底：跳转页面时旧 disconnect 还没传到）
+      for (let i = 0; i < 3; i++) {
+        if (this.seats[i] && this.seats[i].name === playerName) {
+          this.seats[i] = null;
+        }
+      }
+      const empty = this.seats.findIndex((s) => s === null);
+      if (empty === -1) return { ok: false, error: '房间已满' };
+      this.seats[empty] = { id: playerId, name: playerName, connected: true, offlineSince: null };
+      if (this.seats.every((s) => s !== null)) {
+        this.startBidding();
+      }
+      return { ok: true, seat: empty };
     }
-    return { ok: true, seat: empty };
+
+    // 游戏中：只能接管离线的座位
+    const offline = this.seats.findIndex((s) => s && !s.connected);
+    if (offline === -1) return { ok: false, error: '游戏已开始' };
+    this.seats[offline] = { id: playerId, name: playerName, connected: true, offlineSince: null };
+    return { ok: true, seat: offline, reconnected: true };
   }
 
   leaveSeat(playerId) {
