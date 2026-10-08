@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>斗地主 - 在线联机</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="home">
+    <h1 class="title">🃏 在线斗地主</h1>
+    <p class="subtitle">3 人开局，把房间号发给同学一起玩</p>
+
+    <div class="card home-card">
+      <label>昵称</label>
+      <input id="nameInput" type="text" maxlength="12" placeholder="输入你的昵称" autocomplete="off">
+
+      <div class="actions">
+        <button id="createBtn" class="btn primary">创建房间</button>
+      </div>
+
+      <div class="divider"><span>或</span></div>
+
+      <label>房间号</label>
+      <div class="row">
+        <input id="roomInput" type="text" maxlength="6" placeholder="如 ABCD" style="text-transform: uppercase;">
+        <button id="joinBtn" class="btn">加入</button>
+      </div>
+
+      <p id="msg" class="msg"></p>
+    </div>
+
+    <div class="rules">
+      <h3>玩法速览</h3>
+      <ul>
+        <li>3 人一桌，地主 vs 两个农民</li>
+        <li>按顺序轮流叫地主，第一个叫的当地主</li>
+        <li>支持：单/对/三带/顺子/连对/飞机/炸弹/火箭</li>
+        <li>15 秒不出自动托管（出最小牌）</li>
+      </ul>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/main.js"></script>
+</body>
+</html>

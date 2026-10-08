@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>斗地主 - 牌桌</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="room">
+    <div class="room-header">
+      <div>房间号：<span class="room-id" id="roomId">----</span> <button id="copyBtn" class="btn ghost" style="padding:2px 8px;font-size:11px;">复制链接</button></div>
+      <div class="my-info" id="myInfo">--</div>
+    </div>
+
+    <div class="table">
+      <div class="seats-top">
+        <div class="player" id="seat-other-0"></div>
+        <div class="player" id="seat-other-1"></div>
+      </div>
+
+      <div class="center" id="center">
+        <div class="status" id="statusText">等待玩家...</div>
+        <div class="hint" id="hintText"></div>
+        <div class="last-play" id="lastPlay"></div>
+      </div>
+
+      <div class="my-hand-wrap">
+        <div class="player is-me" id="seat-me" style="margin-bottom: 6px;"></div>
+        <div class="my-hand" id="myHand"></div>
+        <div class="actions-bar" id="myActions"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="bidModal" class="modal" style="display:none;">
+    <div class="panel">
+      <h3>抢地主</h3>
+      <p>轮到你叫地主</p>
+      <div class="bid-buttons">
+        <button id="bidYes" class="btn primary">叫地主</button>
+        <button id="bidNo" class="btn ghost">不叫</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="resultModal" class="result" style="display:none;">
+    <div class="panel">
+      <h2 id="resultTitle">游戏结束</h2>
+      <div class="roles" id="resultRoles"></div>
+      <div class="actions">
+        <button id="restartBtn" class="btn primary">再来一局</button>
+        <button id="leaveBtn" class="btn ghost">离开房间</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/game.js"></script>
+</body>
+</html>

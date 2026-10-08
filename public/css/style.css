@@ -1,0 +1,314 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  background: linear-gradient(135deg, #0f5c3a 0%, #1a7a4d 100%);
+  color: #f0f0f0;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+input, button {
+  font-family: inherit;
+  font-size: 16px;
+}
+
+/* === Home === */
+.home {
+  max-width: 460px;
+  margin: 0 auto;
+  padding: 40px 20px;
+}
+.title { text-align: center; font-size: 32px; margin-bottom: 8px; }
+.subtitle { text-align: center; color: #c9e8d4; margin-bottom: 24px; font-size: 14px; }
+
+.card {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  padding: 20px;
+  backdrop-filter: blur(6px);
+}
+.home-card label {
+  display: block;
+  font-size: 13px;
+  color: #c9e8d4;
+  margin-bottom: 6px;
+  margin-top: 12px;
+}
+.home-card label:first-of-type { margin-top: 0; }
+
+input[type="text"] {
+  width: 100%;
+  padding: 10px 12px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  border-radius: 8px;
+  outline: none;
+}
+input[type="text"]:focus { border-color: #5dd39e; }
+
+.actions { margin-top: 16px; }
+.row { display: flex; gap: 8px; }
+.row input { flex: 1; }
+
+.btn {
+  background: #2d8f5e;
+  color: #fff;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.15s;
+}
+.btn:hover { background: #36a36c; transform: translateY(-1px); }
+.btn:active { transform: translateY(0); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn.primary { background: #d9534f; }
+.btn.primary:hover { background: #e0605c; }
+.btn.ghost { background: transparent; border: 1px solid rgba(255,255,255,0.3); }
+.btn.ghost:hover { background: rgba(255,255,255,0.08); }
+
+.divider {
+  display: flex;
+  align-items: center;
+  margin: 20px 0;
+  color: #8ab5a0;
+  font-size: 12px;
+}
+.divider::before, .divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.15);
+}
+.divider span { padding: 0 12px; }
+
+.msg { margin-top: 12px; min-height: 20px; font-size: 13px; color: #ffb86b; }
+
+.rules {
+  margin-top: 20px;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 12px;
+  font-size: 13px;
+  color: #c9e8d4;
+}
+.rules h3 { margin-bottom: 8px; font-size: 14px; }
+.rules ul { padding-left: 20px; line-height: 1.8; }
+
+/* === Game Room === */
+.room {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+  position: relative;
+}
+.room-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 8px;
+  font-size: 13px;
+}
+.room-header .room-id { font-weight: 700; color: #ffd166; letter-spacing: 1px; }
+.room-header .my-info { color: #c9e8d4; }
+
+.table {
+  flex: 1;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 8px;
+  margin: 8px 0;
+  position: relative;
+}
+
+/* 三个对手 + 自己座位 */
+.seat-top, .seats-top, .seats-side {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+}
+.seats-side {
+  justify-content: space-between;
+  padding: 0 12px;
+}
+
+.player {
+  background: rgba(0, 0, 0, 0.3);
+  border: 2px solid transparent;
+  border-radius: 10px;
+  padding: 8px 12px;
+  min-width: 100px;
+  text-align: center;
+  position: relative;
+}
+.player.is-turn { border-color: #ffd166; box-shadow: 0 0 12px rgba(255, 209, 102, 0.5); }
+.player.is-landlord { background: rgba(217, 83, 79, 0.3); }
+.player.is-me { border-color: #5dd39e; }
+.player .name { font-size: 14px; font-weight: 600; }
+.player .meta { font-size: 11px; color: #c9e8d4; margin-top: 2px; }
+.player .landlord-mark { color: #ffd166; font-size: 10px; }
+
+/* 中间出牌区 */
+.center {
+  position: relative;
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 12px;
+  min-height: 180px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.center .status { font-size: 18px; font-weight: 600; color: #ffd166; }
+.center .hint { font-size: 12px; color: #c9e8d4; margin-top: 4px; }
+.center .last-play { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; max-width: 90%; }
+
+/* 牌 */
+.card-pic {
+  display: inline-block;
+  width: 38px;
+  height: 54px;
+  background: #fff;
+  color: #222;
+  border-radius: 4px;
+  border: 1px solid #888;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 3px 4px;
+  position: relative;
+  text-align: left;
+  box-shadow: 0 2px 3px rgba(0,0,0,0.2);
+}
+.card-pic.red { color: #d23; }
+.card-pic.joker { background: linear-gradient(135deg, #f6d365 0%, #fda085 100%); color: #333; font-size: 11px; }
+.card-pic .rank { display: block; font-size: 14px; }
+.card-pic .suit { display: block; font-size: 12px; }
+.card-pic.joker .rank, .card-pic.joker .suit { display: inline; }
+
+.card-back {
+  display: inline-block;
+  width: 26px;
+  height: 38px;
+  background: linear-gradient(135deg, #2c5e8a 0%, #4a8bbf 100%);
+  border: 1px solid #1a3a55;
+  border-radius: 3px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+
+/* 自己的手牌 */
+.my-hand-wrap {
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 12px;
+  padding: 8px 6px;
+  position: relative;
+}
+.my-hand {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: center;
+  min-height: 62px;
+}
+.my-hand .card-pic {
+  cursor: pointer;
+  transition: transform 0.1s;
+  margin-top: 0;
+}
+.my-hand .card-pic:hover { transform: translateY(-4px); }
+.my-hand .card-pic.selected {
+  transform: translateY(-12px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.4), 0 0 0 2px #ffd166;
+}
+
+/* 操作栏 */
+.actions-bar {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px;
+  flex-wrap: wrap;
+}
+.actions-bar .btn { min-width: 80px; }
+
+/* 抢地主弹窗 */
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+.modal .panel {
+  background: linear-gradient(135deg, #1a7a4d 0%, #0f5c3a 100%);
+  padding: 24px;
+  border-radius: 12px;
+  text-align: center;
+  border: 2px solid #ffd166;
+  min-width: 280px;
+}
+.modal h3 { margin-bottom: 12px; color: #ffd166; }
+.modal .bid-buttons { display: flex; gap: 12px; justify-content: center; margin-top: 12px; }
+.modal .btn { min-width: 80px; }
+
+/* 结算 */
+.result {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+.result .panel {
+  background: linear-gradient(135deg, #1a7a4d 0%, #0f5c3a 100%);
+  padding: 32px;
+  border-radius: 12px;
+  text-align: center;
+  border: 2px solid #ffd166;
+  min-width: 300px;
+}
+.result h2 { color: #ffd166; margin-bottom: 8px; }
+.result .roles { margin: 12px 0; font-size: 14px; }
+.result .role-landlord { color: #ff7b6b; font-weight: 700; }
+.result .role-farmer { color: #5dd39e; font-weight: 700; }
+.result .actions { margin-top: 16px; display: flex; justify-content: center; gap: 12px; }
+
+/* Toast */
+#toast {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.85);
+  color: #fff;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 13px;
+  z-index: 200;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+#toast.show { opacity: 1; }
+
+/* 移动端 */
+@media (max-width: 600px) {
+  .card-pic { width: 32px; height: 46px; font-size: 11px; }
+  .card-back { width: 22px; height: 32px; }
+  .player { min-width: 80px; padding: 6px 8px; }
+  .player .name { font-size: 12px; }
+}
