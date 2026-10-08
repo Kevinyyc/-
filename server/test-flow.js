@@ -1,5 +1,6 @@
-// 模拟：用户点击"创建房间" -> 跳转到 room.html -> join_room
-// 验证整条链路
+/**
+ * 模拟主页 -> 跳转 -> room.html 的完整流程
+ */
 const { io } = require('socket.io-client');
 const URL = 'http://localhost:3000';
 
@@ -9,20 +10,15 @@ const URL = 'http://localhost:3000';
   await new Promise(r => mainSock.on('connect', r));
   console.log('[main] connected, id:', mainSock.id);
 
-  // 点击"创建房间"
-  const createResp = await new Promise(r => mainSock.emit('create_room', { name: '测试用户' }, r));
+  const createResp = await new Promise(r => mainSock.emit('create_room', { name: '测试用户', userId: 'u-main' }, r));
   console.log('[main] create_room response:', createResp);
-
   if (!createResp.ok) {
     console.log('❌ 创建房间失败');
     process.exit(1);
   }
 
-  console.log('[main] 应该跳转到 /room.html?room=' + createResp.roomId);
-  // 模拟：断开主页面 socket（页面跳转）
+  console.log('[main] 跳转到 /room.html?room=' + createResp.roomId);
   mainSock.disconnect();
-  console.log('[main] socket disconnected (页面跳转)');
-
   await new Promise(r => setTimeout(r, 200));
 
   // === 牌桌页 ===
@@ -30,8 +26,7 @@ const URL = 'http://localhost:3000';
   await new Promise(r => roomSock.on('connect', r));
   console.log('[room] connected, id:', roomSock.id);
 
-  // 模拟 room.html 的 join_room
-  const joinResp = await new Promise(r => roomSock.emit('join_room', { roomId: createResp.roomId, name: '测试用户' }, r));
+  const joinResp = await new Promise(r => roomSock.emit('join_room', { roomId: createResp.roomId, name: '测试用户', userId: 'u-main' }, r));
   console.log('[room] join_room response:', joinResp);
 
   if (!joinResp.ok) {
@@ -39,7 +34,8 @@ const URL = 'http://localhost:3000';
     process.exit(1);
   }
 
-  console.log('✅ 完整流程通过');
+  if (!joinResp.reconnected) throw new Error('应该返回 reconnected: true');
+  console.log('✅ 完整流程通过（reconnected: true 表明用 userId 正确重连了）');
 
   roomSock.disconnect();
   process.exit(0);

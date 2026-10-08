@@ -1,20 +1,15 @@
 /**
- * 端到端测试：打完一局 + 重开
- * 让 3 个玩家把所有牌出完，验证胜负判定和重开
+ * 端到端：打完一局 + 重开
  */
 const { io } = require('socket.io-client');
 const URL = 'http://localhost:3000';
 
-function makeClient(name) {
-  const sock = io(URL, { transports: ['websocket'] });
-  sock.name = name;
-  return sock;
-}
+function makeClient() { return io(URL, { transports: ['websocket'] }); }
 function delay(ms) { return new Promise((r) => setTimeout(r, ms)); }
 function rankOf(c) { return c < 52 ? c % 13 : 13 + (c - 52); }
 
 (async () => {
-  const a = makeClient('A'); const b = makeClient('B'); const c = makeClient('C');
+  const a = makeClient(); const b = makeClient(); const c = makeClient();
   await Promise.all([new Promise(r => a.on('connect', r)), new Promise(r => b.on('connect', r)), new Promise(r => c.on('connect', r))]);
 
   const snaps = { 0: [], 1: [], 2: [] };
@@ -23,23 +18,25 @@ function rankOf(c) { return c < 52 ? c % 13 : 13 + (c - 52); }
   b.on('game_update', s => snaps[1].push(s));
   c.on('game_update', s => snaps[2].push(s));
 
-  const cr = await new Promise(r => a.emit('create_room', { name: 'A' }, r));
-  await new Promise(r => b.emit('join_room', { roomId: cr.roomId, name: 'B' }, r));
-  await new Promise(r => c.emit('join_room', { roomId: cr.roomId, name: 'C' }, r));
+  const cr = await new Promise(r => a.emit('create_room', { name: 'A', userId: 'u-A' }, r));
+  await new Promise(r => b.emit('join_room', { roomId: cr.roomId, name: 'B', userId: 'u-B' }, r));
+  await new Promise(r => c.emit('join_room', { roomId: cr.roomId, name: 'C', userId: 'u-C' }, r));
   await delay(200);
 
-  // 强制：让 seat 0 当地主
+  // seat 0 当地主
   let lastC = snaps[2][snaps[2].length - 1];
   console.log('初始 bidder:', lastC.bidOrder[lastC.bidIdx]);
 
-  // seat 0 (A) 叫
-  a.emit('bid', { action: 'bid' });
+  a.emit('bid', { action: 'bid', userId: 'u-A' });
   await delay(200);
   lastC = snaps[2][snaps[2].length - 1];
   console.log('A 叫后状态:', lastC.state, '地主:', lastC.landlordSeat);
   if (lastC.landlordSeat !== 0) throw new Error('A 应是地主');
 
-  // 现在让 A 一直出最小单张，B/C 不要（除非能压过）
+  // 让 A 一直出最小单张，B/C 不要
+  const clients = [a, b, c];
+  const userIds = ['u-A', 'u-B', 'u-C'];
+
   let turns = 0;
   while (turns < 100) {
     await delay(50);
@@ -51,7 +48,7 @@ function rankOf(c) { return c < 52 ? c % 13 : 13 + (c - 52); }
     if (snap.state !== 'playing') continue;
 
     const cur = snap.curSeat;
-    const client = [a, b, c][cur];
+    const client = clients[cur];
     const mySnap = snaps[cur][snaps[cur].length - 1];
     const hand = mySnap.myHand;
     if (!hand || hand.length === 0) {
@@ -60,33 +57,26 @@ function rankOf(c) { return c < 52 ? c % 13 : 13 + (c - 52); }
     }
     const last = snap.lastPlay;
     if (last && last.seat !== cur) {
-      // 尝试压过
       const target = last.typeInfo;
       if (target.type === 'single') {
         const card = hand.find(c => { const r = rankOf(c); return r > target.rank && r < 13; });
-        if (card) {
-          client.emit('play', { cards: [card], pass: false });
-        } else {
-          client.emit('play', { cards: [], pass: true });
-        }
+        if (card) client.emit('play', { cards: [card], pass: false, userId: userIds[cur] });
+        else client.emit('play', { cards: [], pass: true, userId: userIds[cur] });
       } else {
-        // 其他牌型直接 pass
-        client.emit('play', { cards: [], pass: true });
+        client.emit('play', { cards: [], pass: true, userId: userIds[cur] });
       }
     } else {
-      // 自由出：出最小单张
-      client.emit('play', { cards: [hand[0]], pass: false });
+      client.emit('play', { cards: [hand[0]], pass: false, userId: userIds[cur] });
     }
     turns++;
   }
 
-  // 等 game_over
   const over = await overP;
   console.log('game_over:', over);
 
   // 重开
   console.log('--- 重开测试 ---');
-  a.emit('restart', {});
+  a.emit('restart', { userId: 'u-A' });
   await delay(200);
   const after = snaps[2][snaps[2].length - 1];
   console.log('重开后状态:', after.state);

@@ -3,9 +3,9 @@ const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
 const { RoomManager } = require('./room');
-const rules = require('./rules');
 
 const PORT = process.env.PORT || 3000;
+const IDLE_TIMEOUT_MS = 15000;
 
 const app = express();
 app.use(express.static(path.join(__dirname, '..', 'public')));
@@ -17,78 +17,71 @@ const io = new Server(server, {
 
 const manager = new RoomManager();
 
-// 15 秒未操作自动出牌
-const IDLE_TIMEOUT_MS = 15000;
-const idleTimers = new Map(); // playerId -> timer
+// 托管定时器：userId -> Timer
+const idleTimers = new Map();
 
-function clearIdle(playerId) {
-  const t = idleTimers.get(playerId);
+function clearIdle(userId) {
+  const t = idleTimers.get(userId);
   if (t) clearTimeout(t);
-  idleTimers.delete(playerId);
+  idleTimers.delete(userId);
 }
 
-function armIdle(playerId) {
-  clearIdle(playerId);
+function armIdle(userId, roomId) {
+  clearIdle(userId);
   const t = setTimeout(() => {
-    const room = manager.getRoomOf(playerId);
-    if (!room) return;
-    const seat = room.seats.findIndex((s) => s && s.id === playerId);
+    const room = manager.getRoomOfUser(userId);
+    if (!room || room.roomId !== roomId) return;
+    const seat = room.seats.findIndex((s) => s && s.userId === userId);
     if (seat === -1) return;
     if (room.state === 'bidding' && room.currentBidder === seat) {
-      // 抢地主超时：自动 pass
-      const r = room.bid(playerId, 'pass');
+      const r = room.bid(userId, 'pass');
       if (r.ok) {
-        io.to(room.roomId).emit('game_update', room.getSnapshot());
-        io.to(room.roomId).emit('toast', { msg: `${room.seats[seat].name} 超时未叫，自动放弃` });
-        if (room.state === 'playing') {
-          armAllIdles();
-        } else if (room.state === 'finished') {
-          // 抢地主三家都 pass 后会重新发牌
-          armAllIdles();
+        io.to(roomId).emit('game_update', room.getSnapshot());
+        const s = room.seats[seat];
+        io.to(roomId).emit('toast', { msg: `${s.name} 超时未叫，自动放弃` });
+        if (room.state === 'playing' || room.state === 'bidding') {
+          armRoomIdles(roomId);
         }
       }
     } else if (room.state === 'playing' && room.curSeat === seat) {
-      // 出牌超时：托管
       const action = room.autoPlay(seat);
       if (action) {
-        const r = room.play(playerId, action.cards, action.pass);
+        const r = room.play(userId, action.cards, action.pass);
         if (r.ok) {
-          io.to(room.roomId).emit('game_update', room.getSnapshot());
+          io.to(roomId).emit('game_update', room.getSnapshot());
           if (r.event === 'play_and_finish') {
-            io.to(room.roomId).emit('game_over', { winner: room.winner, landlord: room.landlordSeat });
+            const winnerSeat = room.history[room.history.length - 1].winnerSeat;
+            io.to(roomId).emit('game_over', { winner: room.winner, winnerSeat, landlord: room.landlordSeat });
           }
-          armAllIdles();
+          armRoomIdles(roomId);
         }
       }
     }
   }, IDLE_TIMEOUT_MS);
-  idleTimers.set(playerId, t);
-}
-
-function armAllIdles() {
-  const room = manager.rooms; // 当前所有
-  // 简化：只对最后一个活跃房间 arm；这里改为遍历该房间座位
-  // 实际由调用方指定 roomId
+  idleTimers.set(userId, t);
 }
 
 function armRoomIdles(roomId) {
   const room = manager.getRoom(roomId);
   if (!room) return;
   for (const s of room.seats) {
-    if (s && s.connected) armIdle(s.id);
+    if (s && s.connected) armIdle(s.userId, roomId);
   }
 }
 
 function broadcastRoom(roomId) {
   const room = manager.getRoom(roomId);
   if (!room) return;
-  // 给每个玩家发各自的快照
   for (let i = 0; i < room.seats.length; i++) {
     const s = room.seats[i];
     if (!s) continue;
-    const sock = io.sockets.sockets.get(s.id);
-    if (sock) {
-      sock.emit('game_update', room.getSnapshot(i));
+    // 给该 userId 找到对应的 socket（通过 socketToUser 反查）
+    for (const [sockId, uid] of manager.socketToUser.entries()) {
+      if (uid === s.userId) {
+        const sock = io.sockets.sockets.get(sockId);
+        if (sock) sock.emit('game_update', room.getSnapshot(i));
+        break;
+      }
     }
   }
 }
@@ -96,30 +89,31 @@ function broadcastRoom(roomId) {
 io.on('connection', (socket) => {
   console.log(`[conn] ${socket.id}`);
 
-  socket.on('create_room', ({ name }, cb) => {
+  socket.on('create_room', ({ name, userId }, cb) => {
     if (!name || !name.trim()) return cb && cb({ ok: false, error: '请输入昵称' });
+    if (!userId) return cb && cb({ ok: false, error: '缺少 userId' });
     const roomId = manager.createRoom();
-    const r = manager.join(roomId, socket.id, name.trim().slice(0, 12));
+    const r = manager.join(roomId, socket.id, userId, name.trim().slice(0, 12));
     if (r.ok) {
       socket.join(roomId);
-      cb && cb({ ok: true, roomId, seat: r.seat });
+      cb && cb({ ok: true, roomId, seat: r.seat, reconnected: !!r.reconnected });
       broadcastRoom(roomId);
     } else {
       cb && cb({ ok: false, error: r.error });
     }
   });
 
-  socket.on('join_room', ({ roomId, name }, cb) => {
+  socket.on('join_room', ({ roomId, name, userId }, cb) => {
     if (!name || !name.trim()) return cb && cb({ ok: false, error: '请输入昵称' });
     if (!roomId) return cb && cb({ ok: false, error: '请输入房间号' });
-    const r = manager.join(roomId.toUpperCase(), socket.id, name.trim().slice(0, 12));
+    if (!userId) return cb && cb({ ok: false, error: '缺少 userId' });
+    const r = manager.join(roomId.toUpperCase(), socket.id, userId, name.trim().slice(0, 12));
     if (r.ok) {
       socket.join(r.roomId);
       cb && cb({ ok: true, roomId: r.roomId, seat: r.seat, reconnected: !!r.reconnected });
       broadcastRoom(r.roomId);
-      if (manager.getRoom(r.roomId).state === 'playing') {
-        armRoomIdles(r.roomId);
-      } else if (manager.getRoom(r.roomId).state === 'bidding') {
+      const room = manager.getRoom(r.roomId);
+      if (room.state === 'playing' || room.state === 'bidding') {
         armRoomIdles(r.roomId);
       }
     } else {
@@ -127,28 +121,29 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('bid', ({ action }, cb) => {
-    const room = manager.getRoomOf(socket.id);
+  socket.on('bid', ({ action, userId }, cb) => {
+    if (!userId) return cb && cb({ ok: false, error: '缺少 userId' });
+    const room = manager.getRoomOfUser(userId);
     if (!room) return cb && cb({ ok: false, error: '未在房间' });
-    const r = room.bid(socket.id, action);
+    const r = room.bid(userId, action);
     cb && cb(r);
     if (r.ok) {
-      clearIdle(socket.id);
+      clearIdle(userId);
       broadcastRoom(room.roomId);
       if (room.state === 'playing') armRoomIdles(room.roomId);
     }
   });
 
-  socket.on('play', ({ cards, pass }, cb) => {
-    const room = manager.getRoomOf(socket.id);
+  socket.on('play', ({ cards, pass, userId }, cb) => {
+    if (!userId) return cb && cb({ ok: false, error: '缺少 userId' });
+    const room = manager.getRoomOfUser(userId);
     if (!room) return cb && cb({ ok: false, error: '未在房间' });
-    const r = room.play(socket.id, cards, pass);
+    const r = room.play(userId, cards, pass);
     cb && cb(r);
     if (r.ok) {
-      clearIdle(socket.id);
+      clearIdle(userId);
       broadcastRoom(room.roomId);
       if (room.state === 'finished') {
-        // 通知前端
         const winnerSeat = room.history[room.history.length - 1].winnerSeat;
         io.to(room.roomId).emit('game_over', { winner: room.winner, winnerSeat, landlord: room.landlordSeat });
       } else {
@@ -157,8 +152,9 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('restart', (_x, cb) => {
-    const room = manager.getRoomOf(socket.id);
+  socket.on('restart', ({ userId }, cb) => {
+    if (!userId) return cb && cb({ ok: false, error: '缺少 userId' });
+    const room = manager.getRoomOfUser(userId);
     if (!room) return cb && cb({ ok: false, error: '未在房间' });
     const r = room.restart();
     cb && cb(r);
@@ -170,13 +166,12 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', () => {
     console.log(`[disc] ${socket.id}`);
-    // 注意：不要 clearIdle，让超时自动出牌继续生效（断线 = 离线托管）
-    const room = manager.getRoomOf(socket.id);
+    const userId = manager.socketToUser.get(socket.id);
+    const room = userId ? manager.getRoomOfUser(userId) : null;
+    manager.leaveBySocket(socket.id);
     if (room) {
-      manager.leave(socket.id);
-      // 通知房间其他人
-      io.to(room.roomId).emit('toast', { msg: '有人断开了，TA 会被自动托管' });
       broadcastRoom(room.roomId);
+      io.to(room.roomId).emit('toast', { msg: '有人断开了，会自动托管' });
     }
   });
 });
