@@ -5,7 +5,7 @@ const path = require('path');
 const { RoomManager } = require('./room');
 
 const PORT = process.env.PORT || 3000;
-const IDLE_TIMEOUT_MS = 15000;
+const IDLE_TIMEOUT_MS = 60000; // 60 秒超时自动托管（抢地主 + 出牌都用）
 
 const app = express();
 // 禁用缓存，确保浏览器每次拿到最新前端代码
