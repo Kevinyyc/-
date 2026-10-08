@@ -247,6 +247,8 @@ class Game {
 
   _nextTurn() {
     if (this.passCount >= 2) {
+      // 连续两人 pass，重新开始新一轮：上一个出牌的人自由出
+      this.curSeat = this.lastPlay ? this.lastPlay.seat : this.curSeat;
       this.lastPlay = null;
       this.passCount = 0;
       return;

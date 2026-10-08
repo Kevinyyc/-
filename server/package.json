@@ -9,7 +9,7 @@
   "scripts": {
     "start": "node index.js",
     "dev": "node --watch index.js",
-    "test": "node test-rules.js && node test.js && node test-flow.js && node test-bug.js && node test-e2e.js"
+    "test": "node test-rules.js && node test.js && node test-flow.js && node test-order.js && node test-bug.js && node test-e2e.js"
   },
   "dependencies": {
     "express": "^4.19.2",
